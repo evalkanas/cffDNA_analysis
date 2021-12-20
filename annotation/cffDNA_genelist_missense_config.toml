@@ -1,0 +1,11 @@
+[[annotation]]
+file="/data/talkowski/ev962/resources/gene_lists/full_prenatal_2535_v2.gene.list.hg38.final.bed.gz"
+columns = [4, 5, 6, 7, 8]
+names=["disease_list_gene", "disease_list_source", "disease_list_inheritance", "DDG2P_phenotype", "OMIM_phenotype"]
+ops=["concat", "concat", "concat", "concat", "concat"]
+
+[[annotation]]
+file="/data/talkowski/ev962/resources/gene_lists/samocha_missense_regional_constraint_full_genome.sorted.hg38.bed.gz"
+columns = [4]
+names=["reg_mis_constr"]
+ops=["self"]
