@@ -236,7 +236,7 @@ def main():
         vcf = pysam.VariantFile(args.vcf, 'r')
         name=args.vcf.strip().split("/")[-1]
 
-    if args.fout in '- stdout'.split():
+    if args.fout in '- stdout'.split(): #just need 2 output files - recessive and het variants
 #        fout = pysam.VariantFile(sys.stdout, 'w', header=vcf.header)
         rec_homs = pysam.VariantFile(sys.stdout+"/man_rev_homs_"+name, 'w', header=vcf.header)
         manual_rev = pysam.VariantFile(sys.stdout+"/man_rev_dom_"+name, 'w', header=vcf.header)
