@@ -238,21 +238,16 @@ def main():
 
     if args.fout in '- stdout'.split(): #just need 2 output files - recessive and het variants
 #        fout = pysam.VariantFile(sys.stdout, 'w', header=vcf.header)
-        rec_homs = pysam.VariantFile(sys.stdout+"/man_rev_homs_"+name, 'w', header=vcf.header)
-        manual_rev = pysam.VariantFile(sys.stdout+"/man_rev_dom_"+name, 'w', header=vcf.header)
-        comp_het = pysam.VariantFile(sys.stdout+"/comp_het_"+name, 'w', header=vcf.header)
-        private_vars = pysam.VariantFile(sys.stdout+"/private_vars_"+name, 'w', header=vcf.header)
+        hom_file = pysam.VariantFile(sys.stdout+"/hom_variants_"+name, 'w', header=vcf.header)
+        het_file = pysam.VariantFile(sys.stdout+"/het_variants_"+name, 'w', header=vcf.header)
     else:
 #        fout = pysam.VariantFile(args.fout, 'w', header=vcf.header)
-        rec_homs = pysam.VariantFile(args.fout+"/man_rev_homs_"+name, 'w', header=vcf.header)
-        manual_rev = pysam.VariantFile(args.fout+"/man_rev_dom_"+name, 'w', header=vcf.header)
-        comp_het = pysam.VariantFile(args.fout+"/comp_het_"+name, 'w', header=vcf.header)
-        private_vars = pysam.VariantFile(args.fout+"/private_vars_"+name, 'w', header=vcf.header)
+        hom_file = pysam.VariantFile(args.fout+"/hom_variants_"+name, 'w', header=vcf.header)
+        het_file = pysam.VariantFile(args.fout+"/het_variants_"+name, 'w', header=vcf.header)
 
     ped_dict, parent_list, affected_list = get_ped_structure(args.ped) #get a dict of prodband: dad, mom, sex and a list of all parents of trio probands, and all affected individuals
     proband = args.proband
     print("proband {}".format(proband))
-    #print(ped_dict)
     print("proband entry {}".format(ped_dict[proband]))
     pat = ped_dict[proband][0]
     mat = ped_dict[proband][1]
@@ -265,8 +260,7 @@ def main():
 
     hom_num=0
     de_novo_num=0
-    #cohort_gt_cutoff = 5
-    cohort_gt_cutoff = 8
+    cohort_gt_cutoff = 4
 
  ### Set Variants ###
     cons_keep=['frameshift_deletion', 'frameshift_insertion', 'nonsynonymous_SNV', 'stopgain', 'stoploss', 'splicing'] #, 'UTR3', 'UTR5', 'upstream']
@@ -277,19 +271,19 @@ def main():
 
         denovos = []
         homs = []
-        hets =[] 
-        private = []
 
         # Remove multiallelics
         if len(record.alts) > 1:
             continue
 
-        # Do not include chr Y or MT (these shouldn't be called in the prenatals anyway)
-#        if record.contig.strip('chr') == 'Y' or record.contig.strip('chr') == 'MT':
-        if record.contig.strip('chr') == 'MT':
+        # Do not include chr Y or MT 
+        chrom = record.contig.lstrip("chr")
+
+        if chrom  == 'MT' or chrom == 'Y':
             continue
 
-        # remove sites that overlap a deletion
+
+        # remove spanning deletions
         if '*' in record.alts:
             continue
 
@@ -302,6 +296,7 @@ def main():
             continue
 
         # remove sites where the disease gene list annotation is not the same as the gene overlapping the consequence reported by annovar
+        # TODO remove need to have disease_list_gene annotation and allow us to supply list of gene names for filtering
         disease_list=list(record.info['disease_list_gene'])
         gene_effect = list(record.info['AAChange.ensGene']) + list(record.info['GeneDetail.ensGene']) + list(record.info['Gene.ensGene'])
         ensGene = [s.strip().split(":")[0] for s in gene_effect]
@@ -312,50 +307,21 @@ def main():
         candidates = get_proband_vars(record, affected_list)
         het_candidates = len([geno for geno in candidates if geno == (0,1)]) # number of probands that are het at this site
         hom_candidates = len([geno for geno in candidates if geno == (1,1)]) # numner of probands that are hom at this site
-#        if candidates > 5:
-#            continue
+
 
         # remove sites where any family member has less than AD of 5
-        ADs = [record.samples[proband]['AD'], record.samples[pat]['AD'], record.samples[mat]['AD']]
-        pass_AD = [s for s in ADs if s != (None,) and sum(s) > 5]
-        if len(pass_AD) < 3: # if all 3 individuals in this fam do not have passing AD, remove the site
-            continue
+        # Do not want to use AD filter on prenatal samples 
+        #AD = [record.samples[proband]['AD'], record.samples[pat]['AD'], record.samples[mat]['AD']]
+        #pass_AD = [s for s in ADs if s != (None,) and sum(s) > 5]
+        #if len(pass_AD) < 3: # if all 3 individuals in this fam do not have passing AD, remove the site
+        #    continue
 
-        # remove sites in too many parents
         
-        parent_vars = get_parent_vars(record, parent_list)
-        if parent_vars > (len(parent_list)*2*0.05): # if more than 5% of parental alleles (across the cohort) are alt at this location, remove
-#        if parent_vars > 332:    # if there are less than 5% alt allele in the parent pop - specific to ASD cohort of 3332 children
-            continue
+        #we wont have parents for single samples
+#        parent_vars = get_parent_vars(record, parent_list)
+#        if parent_vars > (len(parent_list)*2*0.05): # if more than 5% of parental alleles (across the cohort) are alt at this location, remove
+#            continue
 
-
-        #### INHERITANCE FILTERING ####
-        # get de novo variants in this family - sex specific
-        chrom = record.contig.lstrip("chr")
-
-        if chrom  == 'MT' or chrom == 'Y':  # remove mito 
-            continue
-
-        if chrom == "X" and sex == 1:
-            denovos = get_male_X_dn(record, proband, pat, mat)
-        elif chrom  == "Y" and sex == 1:
-            denovos = get_male_Y_dn(record, proband, pat, mat)
-        else:
-            denovos = get_all_denovo_candidates(record, proband, pat, mat)
-
-        homs = get_hom_alt(record, proband, pat, mat, sex)
-        hets = get_proband_hets(record, proband, pat, mat)
-        
-        # Get inherited variants in this family
-        if chrom == 'X':
-            private = get_all_private_x(record, proband, pat, mat, sex)
-        else:
-            # Skip records without any variants fitting genotype criteria
-            private = get_all_private(record, proband, pat, mat)
-
-        # Skip records without any variants of interest
-        if len(denovos) == 0 and len(homs) == 0 and len(hets) == 0 and private == 0: #if the proaband isn't variant here, skip this record
-            continue
 
  ### Filter Variants ###
 
@@ -369,6 +335,7 @@ def main():
         dom_af_thresh = 0.01
         rec_af_thresh = 0.05
         raw_af_list = [record.info['ExAC_ALL'][0], record.info['gnomAD_genome_ALL'][0], record.info['gnomAD_exome_ALL'][0], record.info['1000g2015aug_all']]
+        raw_af_list.append(record.info['AF'][0]) #do we want to set same AF filters for cohort as dbs?
 
         # ANNOVAR doesn't give annotations for each multiallelic variant allele
         af_list = [ af for af in raw_af_list if (af is not None ) and ( af != "." ) ] #remove null values
@@ -376,24 +343,22 @@ def main():
             db_max_af = 0
         else:
             db_max_af = max(float(value) for value in af_list)
-
-#        max_af = max(db_max_af, record.info['AF_founder'])
         max_af = db_max_af
-
         if max_af > rec_af_thresh: #af_threshold: # remove vars that are too frequent
             continue
 
         # remove if not coding effect of interest 
-        if num_coding < 1:   # or record.info['disease_list_source'][0] == "NA": remove if not in annotated gene list`
+        if num_coding < 1 or record.info['disease_list_source'][0] == "NA": remove if not in annotated gene list`:
             continue
 
-        # only keep PASS/ExcessHet SNVs
-        if len(record.alts[0]) == 1 and len(record.ref) == 1:  #  SNV
-            if record.filter.keys()[0] not in ['PASS', 'ExcessHet']: # only keep SNV vars that pass vqsr or were flagged as Excess hets - keep all indels regardless of filter
-                continue
-        else: # indel
-            if len(record.alts[0]) > 50 or len(record.ref) > 50: # remove indels larger than 50 bp
-                continue
+        #only keep PASS/ExcessHet SNVs
+        #NOT accurate for cffDNA
+        #if len(record.alts[0]) == 1 and len(record.ref) == 1:  #  SNV
+        #    if record.filter.keys()[0] not in ['PASS', 'ExcessHet']: # only keep SNV vars that pass vqsr or were flagged as Excess hets - keep all indels regardless of filter
+        #        continue
+        #else: # indel
+        #    if len(record.alts[0]) > 50 or len(record.ref) > 50: # remove indels larger than 50 bp
+        #        continue
 
         # remove missense variants that are benign in clinvar
         if list(record.info['ExonicFunc.ensGene'])[0] == 'nonsynonymous_SNV' and set(record.info['CLNSIG']).issubset(clin_remove): #get rid of missense vars in clinvar as benign/risk factor, etc
@@ -404,9 +369,10 @@ def main():
 #        if sum(list(proband_format['AD'])) < 5: # if there are less than 5 reads at this position, remove this variant      
 #            continue
 
+        #not informative for cffDNA
         AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
-        if AB < 0.15: # remove sites with low AB - this will remove 0/0 de novo sites
-            continue
+#        if AB < 0.15: # remove sites with low AB - this will remove 0/0 de novo sites
+#            continue
         proband_gq=proband_format['GQ']
         if proband_gq is None: #or record.filter.keys()[0] != 'PASS':
             continue
@@ -436,6 +402,50 @@ def main():
                 mis_tier = 1
             else:
                 mis_tier = 0 
+
+        #### INHERITANCE FILTERING ####
+        # dominant vars
+        proband_gt = record.samples[proband]['GT']
+
+
+        if 'Dominant' in record.info['disease_list_inheritance']:
+            if chrom == "X":
+                if sex == 1:
+                    if proband_gt == (1,1): #if this is in PAR gt could == 0/1, but not interested in those 
+                        het_file.write(record)
+                elif sex == 2:
+                    het_file.write(record)
+            else:
+                if proband_gt == (0,1):
+                    het_file.write(record)
+
+        if 'Recessive' in record.info['disease_list_inheritance']:
+            if chrom == "X":
+            else:
+                if proband_gt == (1,1):
+                    hom_file.write(record)
+
+
+        if chrom == "X" and sex == 1:
+            denovos = get_male_X_dn(record, proband, pat, mat)
+        elif chrom  == "Y" and sex == 1:
+            denovos = get_male_Y_dn(record, proband, pat, mat)
+        else:
+            denovos = get_all_denovo_candidates(record, proband, pat, mat)
+
+        homs = get_hom_alt(record, proband, pat, mat, sex)
+        hets = get_proband_hets(record, proband, pat, mat)
+        
+        # Get inherited variants in this family
+        if chrom == 'X':
+            private = get_all_private_x(record, proband, pat, mat, sex)
+        else:
+            # Skip records without any variants fitting genotype criteria
+            private = get_all_private(record, proband, pat, mat)
+
+        # Skip records without any variants of interest
+        if len(denovos) == 0 and len(homs) == 0 and len(hets) == 0 and private == 0: #if the proaband isn't variant here, skip this record
+            continue
 
         if len(private) > 0 and max_af <= dom_af_thresh and parent_vars <=  (len(parent_list)*2*0.01) and 'Dominant' in record.info['disease_list_inheritance']: #remove if no private variants at this site, if too common in ref databases or if in more than 1% pf parental alleles or if not in our annotated gene list
 #        if len(private) > 0 and max_af <= dom_af_thresh and record.info['disease_list_source'][0] != "NA": #remove if no private variants at this site, if too common in ref databases or if in more than 1% pf parental alleles or if not in our annotated gene list
