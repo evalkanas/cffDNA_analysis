@@ -240,10 +240,13 @@ def main():
 #        fout = pysam.VariantFile(sys.stdout, 'w', header=vcf.header)
         hom_file = pysam.VariantFile(sys.stdout+"/hom_variants_"+name, 'w', header=vcf.header)
         het_file = pysam.VariantFile(sys.stdout+"/het_variants_"+name, 'w', header=vcf.header)
+        comp_het_file = pysam.VariantFile(sys.stdout+"/comp_het_variants_"+name, 'w', header=vcf.header)
+
     else:
 #        fout = pysam.VariantFile(args.fout, 'w', header=vcf.header)
         hom_file = pysam.VariantFile(args.fout+"/hom_variants_"+name, 'w', header=vcf.header)
         het_file = pysam.VariantFile(args.fout+"/het_variants_"+name, 'w', header=vcf.header)
+        comp_het_file = pysam.VariantFile(args.fout+"/comp_het_variants_"+name, 'w', header=vcf.header)
 
     ped_dict, parent_list, affected_list = get_ped_structure(args.ped) #get a dict of prodband: dad, mom, sex and a list of all parents of trio probands, and all affected individuals
     proband = args.proband
@@ -406,80 +409,83 @@ def main():
         #### INHERITANCE FILTERING ####
         # dominant vars
         proband_gt = record.samples[proband]['GT']
+        comp_het_list = []
 
 
         if 'Dominant' in record.info['disease_list_inheritance']:
             if chrom == "X":
                 if sex == 1:
-                    if proband_gt == (1,1): #if this is in PAR gt could == 0/1, but not interested in those 
+                    if proband_gt == (1,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff: #if this is in PAR gt could == 0/1, but not interested in those 
                         het_file.write(record)
-                elif sex == 2:
+                elif sex == 2 and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
                     het_file.write(record)
             else:
-                if proband_gt == (0,1):
+                if proband_gt == (0,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
                     het_file.write(record)
 
         if 'Recessive' in record.info['disease_list_inheritance']:
-            if chrom == "X":
-            else:
-                if proband_gt == (1,1):
-                    hom_file.write(record)
+            if proband_gt == (1,1) and hom_candidates <= cohort_gt_cutoff:
+                hom_file.write(record)
+            if proband_gt == (0,1) and hom_candidates <= cohort_gt_cutoff:
+                comp_het_list.append(record)
 
+        
 
-        if chrom == "X" and sex == 1:
-            denovos = get_male_X_dn(record, proband, pat, mat)
-        elif chrom  == "Y" and sex == 1:
-            denovos = get_male_Y_dn(record, proband, pat, mat)
-        else:
-            denovos = get_all_denovo_candidates(record, proband, pat, mat)
+        #if chrom == "X" and sex == 1:
+        #    denovos = get_male_X_dn(record, proband, pat, mat)
+        #elif chrom  == "Y" and sex == 1:
+        #    denovos = get_male_Y_dn(record, proband, pat, mat)
+        #else:
+        #    denovos = get_all_denovo_candidates(record, proband, pat, mat)
 
         homs = get_hom_alt(record, proband, pat, mat, sex)
         hets = get_proband_hets(record, proband, pat, mat)
         
         # Get inherited variants in this family
-        if chrom == 'X':
-            private = get_all_private_x(record, proband, pat, mat, sex)
-        else:
+        #if chrom == 'X':
+        #    private = get_all_private_x(record, proband, pat, mat, sex)
+        #else:
             # Skip records without any variants fitting genotype criteria
-            private = get_all_private(record, proband, pat, mat)
+        #    private = get_all_private(record, proband, pat, mat)
 
         # Skip records without any variants of interest
-        if len(denovos) == 0 and len(homs) == 0 and len(hets) == 0 and private == 0: #if the proaband isn't variant here, skip this record
-            continue
+        #if len(denovos) == 0 and len(homs) == 0 and len(hets) == 0 and private == 0: #if the proaband isn't variant here, skip this record
+        #    continue
 
-        if len(private) > 0 and max_af <= dom_af_thresh and parent_vars <=  (len(parent_list)*2*0.01) and 'Dominant' in record.info['disease_list_inheritance']: #remove if no private variants at this site, if too common in ref databases or if in more than 1% pf parental alleles or if not in our annotated gene list
-#        if len(private) > 0 and max_af <= dom_af_thresh and record.info['disease_list_source'][0] != "NA": #remove if no private variants at this site, if too common in ref databases or if in more than 1% pf parental alleles or if not in our annotated gene list
-            if chrom == "X":
-                if hom_candidates + het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 3):
-                    private_vars.write(record)
-            else:
-                if het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 3):
-                    private_vars.write(record) 
+        #if len(private) > 0 and max_af <= dom_af_thresh and parent_vars <=  (len(parent_list)*2*0.01) and 'Dominant' in record.info['disease_list_inheritance']: #remove if no private variants at this site, if too common in ref databases or if in more than 1% pf parental alleles or if not in our annotated gene list
+#       # if len(private) > 0 and max_af <= dom_af_thresh and record.info['disease_list_source'][0] != "NA": #remove if no private variants at this site, if too common in ref databases or if in more than 1% pf parental alleles or if not in our annotated gene list
+        #    if chrom == "X":
+        #        if hom_candidates + het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 3):
+        #            private_vars.write(record)
+        #    else:
+        #        if het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 3):
+        #            private_vars.write(record) 
 
-        if len(hets) > 0 and hom_candidates <= cohort_gt_cutoff and 'Recessive' in record.info['disease_list_inheritance']: # add site to compound het list if proband is het here and 5 or less probands are also het here
-            comp_het.write(record)
+        #if len(hets) > 0 and hom_candidates <= cohort_gt_cutoff and 'Recessive' in record.info['disease_list_inheritance']: # add site to compound het list if proband is het here and 5 or less probands are also het here
+        #    comp_het.write(record)
 
-        if len(denovos) > 0 and 'Dominant' in record.info['disease_list_inheritance']: # if variant is de novo and gene is associated with AD disease
+        #if len(denovos) > 0 and 'Dominant' in record.info['disease_list_inheritance']: # if variant is de novo and gene is associated with AD disease
             # GT specific filtering logic
-            if int(proband_format['GT'][0]) + int(proband_format['GT'][1]) != 1 and hom_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1):  # if this variant is homozygous (ref or alt)  add to  file- all alleles here should be 1 and therefore all hets 0/1 and homs 1/1 or 0/0 so we can add these alleles to infer GT
-                manual_rev.write(record)
-                de_novo_num+=1
+        #    if int(proband_format['GT'][0]) + int(proband_format['GT'][1]) != 1 and hom_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1):  # if this variant is homozygous (ref or alt)  add to  file- all alleles here should be 1 and therefore all hets 0/1 and homs 1/1 or 0/0 so we can add these alleles to infer GT
+        #        manual_rev.write(record)
+        #        de_novo_num+=1
 #                continue
-            elif max_af <= dom_af_thresh and parent_vars <= (len(parent_list)*2*0.01) and het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1): # if variant is het, apply stricter af filters before adding to file and remove if too common in ref databases, or if in more than 1% of parental alleles 
-                manual_rev.write(record)
-                de_novo_num+=1
+        #    elif max_af <= dom_af_thresh and parent_vars <= (len(parent_list)*2*0.01) and het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1): # if variant is het, apply stricter af filters before adding to file and remove if too common in ref databases, or if in more than 1% of parental alleles 
+        #        manual_rev.write(record)
+        #        de_novo_num+=1
 #                continue
-        if len(homs) > 0 and hom_candidates <= cohort_gt_cutoff and 'Recessive' in record.info['disease_list_inheritance'] and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1): #for this record, if the individual has a hom variant here and less than or equal to 5 probands also have this variant
-            rec_homs.write(record)
-            hom_num+=1
+        #if len(homs) > 0 and hom_candidates <= cohort_gt_cutoff and 'Recessive' in record.info['disease_list_inheritance'] and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1): #for this record, if the individual has a hom variant here and less than or equal to 5 probands also have this variant
+        #    rec_homs.write(record)
+        #    hom_num+=1
 #            continue
-        else:
-            continue
+        #else:
+        #    continue
 
-    manual_rev.close()
-    rec_homs.close()
-    comp_het.close()
-    private_vars.close()
+    #TODO: add code to remove half hets and to print comp het list to file 
+
+    het_file.close()
+    hom_file.close()
+    comp_het_file.close()
     print("Homs: {} De novo: {}".format(hom_num, de_novo_num))
 
 if __name__ == '__main__':
