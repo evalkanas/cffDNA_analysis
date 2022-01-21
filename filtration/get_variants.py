@@ -351,7 +351,7 @@ def main():
             continue
 
         # remove if not coding effect of interest 
-        if num_coding < 1 or record.info['disease_list_source'][0] == "NA": remove if not in annotated gene list`:
+        if num_coding < 1 or record.info['disease_list_source'][0] == "NA": #remove if not in annotated gene list`:
             continue
 
         #only keep PASS/ExcessHet SNVs
@@ -373,38 +373,38 @@ def main():
 #            continue
 
         #not informative for cffDNA
-        AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
+        #AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
 #        if AB < 0.15: # remove sites with low AB - this will remove 0/0 de novo sites
 #            continue
-        proband_gq=proband_format['GQ']
-        if proband_gq is None: #or record.filter.keys()[0] != 'PASS':
-            continue
+        #proband_gq=proband_format['GQ']
+        #if proband_gq is None: #or record.filter.keys()[0] != 'PASS':
+        #    continue
 
 #       convert CADD to float    
-        CADD = record.info['CADD_phred'][0]
-        if CADD == '.':
-            CADD = 0
-        CADD = float(CADD)
+        #CADD = record.info['CADD_phred'][0]
+        #if CADD == '.':
+        #    CADD = 0
+        #CADD = float(CADD)
 
 
-        if record.info['reg_mis_constr'] == 'mis_constrained_region':
-            mis_constr = True
-        else:
-            mis_constr = False
+        #if record.info['reg_mis_constr'] == 'mis_constrained_region':
+        #    mis_constr = True
+        #else:
+        #    mis_constr = False
 
 #       missense filtering
-        if list(record.info['ExonicFunc.ensGene'])[0] == 'nonsynonymous_SNV':
-#       Tier 3 if missense variant P/LP in clinvar
-            if len([s for s in list(record.info['CLNSIG']) if s in clin_keep]) > 0:
-                mis_tier = 3
+        #if list(record.info['ExonicFunc.ensGene'])[0] == 'nonsynonymous_SNV':
+#       #Tier 3 if missense variant P/LP in clinvar
+        #    if len([s for s in list(record.info['CLNSIG']) if s in clin_keep]) > 0:
+        #        mis_tier = 3
 #           Tier 2 cadd > 30 or > 15 + missense constr
-            elif CADD > 30 or (CADD > 15 and mis_constr):
-                mis_tier = 2 
+        #    elif CADD > 30 or (CADD > 15 and mis_constr):
+        #        mis_tier = 2 
 #           Tier 1 CADD > 15
-            elif CADD > 15:
-                mis_tier = 1
-            else:
-                mis_tier = 0 
+        #    elif CADD > 15:
+        #        mis_tier = 1
+        #    else:
+        #        mis_tier = 0 
 
         #### INHERITANCE FILTERING ####
         # dominant vars
