@@ -482,6 +482,10 @@ def main():
         #    continue
 
     #TODO: add code to remove half hets and to print comp het list to file 
+    #make list of all genes with hets in comp het list 
+    #for x in comp_het_list: genes.append(gene_annotation)
+    # remove genes with only one occurance 
+    #uni_genes = list(set([i for i in genes if genes.count(i) > 1]))
 
     het_file.close()
     hom_file.close()
