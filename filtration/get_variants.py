@@ -15,7 +15,6 @@ import sys
 import itertools
 import pysam
 from pysam import VariantFile
-#import svtk.utils as svu
 import re
 import pdb
 
@@ -294,9 +293,12 @@ def main():
         if None in record.samples[proband]['GT']:
             continue
 
-        # remove locations where proband is hom ref
-        if record.samples[proband]['GT'] == (0,0) or record.samples[proband]['GT'] == (None, ):
+        # only keep het sites
+        #if record.samples[proband]['GT'] == (0,0) or record.samples[proband]['GT'] == (None, ):
+        #    continue
+        if record.samples[proband]['GT'] != (0,1):
             continue
+
 
         # remove sites where the disease gene list annotation is not the same as the gene overlapping the consequence reported by annovar
         # TODO remove need to have disease_list_gene annotation and allow us to supply list of gene names for filtering
@@ -338,7 +340,7 @@ def main():
         dom_af_thresh = 0.01
         rec_af_thresh = 0.05
         raw_af_list = [record.info['ExAC_ALL'][0], record.info['gnomAD_genome_ALL'][0], record.info['gnomAD_exome_ALL'][0], record.info['1000g2015aug_all']]
-        raw_af_list.append(record.info['AF'][0]) #do we want to set same AF filters for cohort as dbs?
+        #raw_af_list.append(record.info['AF'][0]) #do we want to set same AF filters for cohort as dbs?
 
         # ANNOVAR doesn't give annotations for each multiallelic variant allele
         af_list = [ af for af in raw_af_list if (af is not None ) and ( af != "." ) ] #remove null values
@@ -372,8 +374,7 @@ def main():
 #        if sum(list(proband_format['AD'])) < 5: # if there are less than 5 reads at this position, remove this variant      
 #            continue
 
-        #not informative for cffDNA
-        #AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
+        AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
 #        if AB < 0.15: # remove sites with low AB - this will remove 0/0 de novo sites
 #            continue
         #proband_gq=proband_format['GQ']
@@ -412,21 +413,25 @@ def main():
         comp_het_list = []
 
 
-        if 'Dominant' in record.info['disease_list_inheritance']:
-            if chrom == "X":
-                if sex == 1:
-                    if proband_gt == (1,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff: #if this is in PAR gt could == 0/1, but not interested in those 
-                        het_file.write(record)
-                elif sex == 2 and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
-                    het_file.write(record)
-            else:
-                if proband_gt == (0,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
-                    het_file.write(record)
+        if 'Dominant' in record.info['disease_list_inheritance'] and AB < 0.25 and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
+            het_file.write(record)
+            #if chrom == "X":
+            #    if sex == 1:
+            #        if proband_gt == (1,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff: #if this is in PAR gt could == 0/1, but not interested in those 
+            #            het_file.write(record)
+            #    elif sex == 2 and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
+            #        het_file.write(record)
+            #else:
+            #    if proband_gt == (0,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
+            #        het_file.write(record)
+            
 
         if 'Recessive' in record.info['disease_list_inheritance']:
-            if proband_gt == (1,1) and hom_candidates <= cohort_gt_cutoff:
+            if 0.5 < AB <0.75 and  hom_candidates <= cohort_gt_cutoff:
+            #if proband_gt == (1,1) and hom_candidates <= cohort_gt_cutoff:
                 hom_file.write(record)
-            if proband_gt == (0,1) and hom_candidates <= cohort_gt_cutoff:
+            if AB <0.25 and hom_candidates <= cohort_gt_cutoff
+            #if proband_gt == (0,1) and hom_candidates <= cohort_gt_cutoff:
                 comp_het_list.append(record)
 
         
@@ -482,10 +487,21 @@ def main():
         #    continue
 
     #TODO: add code to remove half hets and to print comp het list to file 
-    #make list of all genes with hets in comp het list 
-    #for x in comp_het_list: genes.append(gene_annotation)
+    #make list of all genes with hets that occur more than once in comp het list
+    genes = []
+    for s in comp_het_list:
+...     genes+=list(s.info['disease_list_gene'])
     # remove genes with only one occurance 
-    #uni_genes = list(set([i for i in genes if genes.count(i) > 1]))
+    keep_genes = list(set([i for i in genes if genes.count(i) > 1]))
+    #loop through comp het list and keep only records where the gene annotation is in our non-unique genes list
+    for record in comp_het_list:
+        counter=0
+        for gene_name in list(record.info['disease_list_gene']): #for each gene annotation, check to see if it is in our gene list and if so add to counter
+            if gene_name in keep_genes:
+                counter+=1
+        if counter > 0: #if counter is greater than 0, at least one gene annotation is in our list to keep so write the record to the comp het list 
+            comp_het_file.write(record)
+
 
     het_file.close()
     hom_file.close()
