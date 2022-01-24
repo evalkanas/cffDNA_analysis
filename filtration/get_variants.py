@@ -430,7 +430,7 @@ def main():
             if 0.5 < AB <0.75 and  hom_candidates <= cohort_gt_cutoff:
             #if proband_gt == (1,1) and hom_candidates <= cohort_gt_cutoff:
                 hom_file.write(record)
-            if AB <0.25 and hom_candidates <= cohort_gt_cutoff
+            if AB <0.25 and hom_candidates <= cohort_gt_cutoff:
             #if proband_gt == (0,1) and hom_candidates <= cohort_gt_cutoff:
                 comp_het_list.append(record)
 
@@ -490,7 +490,7 @@ def main():
     #make list of all genes with hets that occur more than once in comp het list
     genes = []
     for s in comp_het_list:
-...     genes+=list(s.info['disease_list_gene'])
+        genes+=list(s.info['disease_list_gene'])
     # remove genes with only one occurance 
     keep_genes = list(set([i for i in genes if genes.count(i) > 1]))
     #loop through comp het list and keep only records where the gene annotation is in our non-unique genes list
