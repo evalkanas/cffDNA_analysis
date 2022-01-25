@@ -213,9 +213,9 @@ def get_ped_structure(ped_file): #make a dictionary for each individual of their
             fam, indiv, pat, mat, sex, aff = line.strip().split("\t")
             if aff == "2":
                 affecteds.append(indiv)
-            if pat != "0" and  mat != "0": #consider only individuals with both parents in ped **Does not take affected status into account**
-                ped_dict[indiv] = [pat, mat, sex] # create child dictionary
-                founders.extend([pat, mat])	# for all children with both parents, add those parents to a list
+#            if pat != "0" and  mat != "0": #consider only individuals with both parents in ped **Does not take affected status into account**
+#                ped_dict[indiv] = [pat, mat, sex] # create child dictionary
+#                founders.extend([pat, mat])	# for all children with both parents, add those parents to a list
     return(ped_dict, founders, affecteds)
 
 def main():
