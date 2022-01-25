@@ -331,6 +331,9 @@ def main():
             continue
         proband_format = dict(zip(record.format.keys(), record.samples[proband].values()))
         proband_alt_index = proband_format['GT'][1]
+        
+        if sum(list(proband_format['AD'])) == 0: #skip sites with no reads 
+            continue
 
         AB=float(list(proband_format['AD'])[1])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field (alt allele) 
 
