@@ -289,14 +289,14 @@ def main():
         if '*' in record.alts:
             continue
 
-        # remove no call sites in proband
-        if None in record.samples[proband]['GT']:
-            continue
+        # remove no call sites in proband - for cffDNA I don't think we mnind having these in here
+        #if None in record.samples[proband]['GT']:
+        #    continue
 
         # only keep het sites
         #if record.samples[proband]['GT'] == (0,0) or record.samples[proband]['GT'] == (None, ):
         #    continue
-        if record.samples[proband]['GT'] != (0,1):
+        if record.samples[proband]['GT'] == (1,1): #we are not interested in hom sites in mom since they are unlikley to cause disease
             continue
 
 
@@ -350,7 +350,8 @@ def main():
         proband_format = dict(zip(record.format.keys(), record.samples[proband].values()))
         proband_alt_index = proband_format['GT'][1]
 
-        AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
+        AB=float(list(proband_format['AD'])[1])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field (alt allele) 
+#        AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
 #        if AB < 0.15: # remove sites with low AB - this will remove 0/0 de novo sites
 #            continue
 
@@ -385,7 +386,7 @@ def main():
         comp_het_list = []
 
 
-        if 'Dominant' in record.info['disease_list_inheritance'] and AB < 0.25 and max_af <= dom_af_thresh: #and het_candidates <= cohort_gt_cutoff:
+        if 'Dominant' in record.info['disease_list_inheritance'] and 0 < AB < 0.25 and max_af <= dom_af_thresh: #and het_candidates <= cohort_gt_cutoff:
             het_file.write(record)
             #if chrom == "X":
             #    if sex == 1:
