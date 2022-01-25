@@ -249,9 +249,9 @@ def main():
 
     ped_dict, parent_list, affected_list = get_ped_structure(args.ped) #get a dict of prodband: dad, mom, sex and a list of all parents of trio probands, and all affected individuals
     proband = args.proband
-    print("proband {}".format(proband))
-    print(ped_dict)
-    print("proband entry {}".format(ped_dict[proband]))
+#    print("proband {}".format(proband))
+#    print(ped_dict)
+#    print("proband entry {}".format(ped_dict[proband]))
     pat = ped_dict[proband][0]
     mat = ped_dict[proband][1]
     sex = int(ped_dict[proband][2])
@@ -264,6 +264,7 @@ def main():
     hom_num=0
     de_novo_num=0
     cohort_gt_cutoff = 4
+    comp_het_list = [] 
 
  ### Set Variants ###
     cons_keep=['frameshift_deletion', 'frameshift_insertion', 'nonsynonymous_SNV', 'stopgain', 'stoploss', 'splicing'] #, 'UTR3', 'UTR5', 'upstream']
@@ -336,18 +337,15 @@ def main():
         max_af = db_max_af
         if max_af > rec_af_thresh: #af_threshold: # remove vars that are too frequent
             continue
-
         # remove if not coding effect of interest 
         if num_coding < 1 or record.info['disease_list_source'][0] == "NA": #remove if not in annotated gene list`:
             continue
-
         #if len(record.alts[0]) > 50 or len(record.ref) > 50: # remove indels larger than 50 bp
         #    continue
 
         # remove missense variants that are benign in clinvar
         if list(record.info['ExonicFunc.ensGene'])[0] == 'nonsynonymous_SNV' and set(record.info['CLNSIG']).issubset(clin_remove): #get rid of missense vars in clinvar as benign/risk factor, etc
             continue
-
         proband_format = dict(zip(record.format.keys(), record.samples[proband].values()))
         proband_alt_index = proband_format['GT'][1]
 
@@ -384,9 +382,9 @@ def main():
 
         #### INHERITANCE FILTERING ####
         proband_gt = record.samples[proband]['GT']
-        comp_het_list = []
-
-
+        dom_list = []
+        rec_list= []
+        print("inheritance: {}  AB: {} max_af: {}".format(record.info['disease_list_inheritance'], AB, max_af))
         if 'Dominant' in record.info['disease_list_inheritance'] and 0 < AB < 0.25 and max_af <= dom_af_thresh: #and het_candidates <= cohort_gt_cutoff:
             het_file.write(record)
             #if chrom == "X":
@@ -398,16 +396,16 @@ def main():
             #else:
             #    if proband_gt == (0,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
             #        het_file.write(record)
-            
+            dom_list.append(record) 
 
         if 'Recessive' in record.info['disease_list_inheritance']:
-            if 0.5 < AB <0.75: # and  hom_candidates <= cohort_gt_cutoff:
+            if 0.5 < AB < 0.75: # and  hom_candidates <= cohort_gt_cutoff:
             #if proband_gt == (1,1) and hom_candidates <= cohort_gt_cutoff:
                 hom_file.write(record)
-            if AB <0.25: #and hom_candidates <= cohort_gt_cutoff:
+                rec_list.append(record)
+            elif 0 < AB < 0.25: #and hom_candidates <= cohort_gt_cutoff:
             #if proband_gt == (0,1) and hom_candidates <= cohort_gt_cutoff:
                 comp_het_list.append(record)
-
         
 
         #if chrom == "X" and sex == 1:
@@ -463,6 +461,7 @@ def main():
     #remove half hets and print comp het list to file 
     #make list of all genes with hets that occur more than once in comp het list
     genes = []
+    print([s.pos for s in comp_het_list])
     for s in comp_het_list:
         genes+=list(s.info['disease_list_gene'])
     # remove genes with only one occurance 
