@@ -249,20 +249,12 @@ def main():
 
     ped_dict, parent_list, affected_list = get_ped_structure(args.ped) #get a dict of prodband: dad, mom, sex and a list of all parents of trio probands, and all affected individuals
     proband = args.proband
-#    print("proband {}".format(proband))
-#    print(ped_dict)
-#    print("proband entry {}".format(ped_dict[proband]))
     pat = ped_dict[proband][0]
     mat = ped_dict[proband][1]
     sex = int(ped_dict[proband][2])
 
-#    parent_list=[s[0] for s in list(ped_dict.values())]
-#    parent_list.extend([s[1] for s in list(ped_dict.values())])
-
 ## TODO: add code to separate the trio probands from single probands and make singletons go through genotype filtering instead of inheritance filtering - have general filtering come first in script. 
 
-    hom_num=0
-    de_novo_num=0
     cohort_gt_cutoff = 4
     comp_het_list = [] 
 
@@ -272,9 +264,6 @@ def main():
     clin_keep=['Likely_pathogenic', 'Pathogenic', 'Pathogenic/Likely_pathogenic']
 
     for record in vcf:
-
-        denovos = []
-        homs = []
 
         # Remove multiallelics
         if len(record.alts) > 1:
@@ -291,13 +280,6 @@ def main():
         if '*' in record.alts:
             continue
 
-        # remove no call sites in proband - for cffDNA I don't think we mnind having these in here
-        #if None in record.samples[proband]['GT']:
-        #    continue
-
-        # only keep het sites
-        #if record.samples[proband]['GT'] == (0,0) or record.samples[proband]['GT'] == (None, ):
-        #    continue
         if record.samples[proband]['GT'] == (1,1): #we are not interested in hom sites in mom since they are unlikley to cause disease
             continue
 
@@ -337,6 +319,7 @@ def main():
         max_af = db_max_af
         if max_af > rec_af_thresh: #af_threshold: # remove vars that are too frequent
             continue
+
         # remove if not coding effect of interest 
         if num_coding < 1 or record.info['disease_list_source'][0] == "NA": #remove if not in annotated gene list`:
             continue
@@ -350,114 +333,23 @@ def main():
         proband_alt_index = proband_format['GT'][1]
 
         AB=float(list(proband_format['AD'])[1])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field (alt allele) 
-#        AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
-#        if AB < 0.15: # remove sites with low AB - this will remove 0/0 de novo sites
-#            continue
-
-#       convert CADD to float    
-        #CADD = record.info['CADD_phred'][0]
-        #if CADD == '.':
-        #    CADD = 0
-        #CADD = float(CADD)
-
-
-        #if record.info['reg_mis_constr'] == 'mis_constrained_region':
-        #    mis_constr = True
-        #else:
-        #    mis_constr = False
-
-#       missense filtering
-        #if list(record.info['ExonicFunc.ensGene'])[0] == 'nonsynonymous_SNV':
-#       #Tier 3 if missense variant P/LP in clinvar
-        #    if len([s for s in list(record.info['CLNSIG']) if s in clin_keep]) > 0:
-        #        mis_tier = 3
-#           Tier 2 cadd > 30 or > 15 + missense constr
-        #    elif CADD > 30 or (CADD > 15 and mis_constr):
-        #        mis_tier = 2 
-#           Tier 1 CADD > 15
-        #    elif CADD > 15:
-        #        mis_tier = 1
-        #    else:
-        #        mis_tier = 0 
 
         #### INHERITANCE FILTERING ####
         proband_gt = record.samples[proband]['GT']
         dom_list = []
         rec_list= []
-        print("inheritance: {}  AB: {} max_af: {}".format(record.info['disease_list_inheritance'], AB, max_af))
+#        print("inheritance: {}  AB: {} max_af: {}".format(record.info['disease_list_inheritance'], AB, max_af))
         if 'Dominant' in record.info['disease_list_inheritance'] and 0 < AB < 0.25 and max_af <= dom_af_thresh: #and het_candidates <= cohort_gt_cutoff:
             het_file.write(record)
-            #if chrom == "X":
-            #    if sex == 1:
-            #        if proband_gt == (1,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff: #if this is in PAR gt could == 0/1, but not interested in those 
-            #            het_file.write(record)
-            #    elif sex == 2 and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
-            #        het_file.write(record)
-            #else:
-            #    if proband_gt == (0,1) and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
-            #        het_file.write(record)
             dom_list.append(record) 
 
         if 'Recessive' in record.info['disease_list_inheritance']:
             if 0.5 < AB < 0.75: # and  hom_candidates <= cohort_gt_cutoff:
-            #if proband_gt == (1,1) and hom_candidates <= cohort_gt_cutoff:
                 hom_file.write(record)
                 rec_list.append(record)
             elif 0 < AB < 0.25: #and hom_candidates <= cohort_gt_cutoff:
-            #if proband_gt == (0,1) and hom_candidates <= cohort_gt_cutoff:
                 comp_het_list.append(record)
         
-
-        #if chrom == "X" and sex == 1:
-        #    denovos = get_male_X_dn(record, proband, pat, mat)
-        #elif chrom  == "Y" and sex == 1:
-        #    denovos = get_male_Y_dn(record, proband, pat, mat)
-        #else:
-        #    denovos = get_all_denovo_candidates(record, proband, pat, mat)
-
-#        homs = get_hom_alt(record, proband, pat, mat, sex)
-#        hets = get_proband_hets(record, proband, pat, mat)
-        
-        # Get inherited variants in this family
-        #if chrom == 'X':
-        #    private = get_all_private_x(record, proband, pat, mat, sex)
-        #else:
-            # Skip records without any variants fitting genotype criteria
-        #    private = get_all_private(record, proband, pat, mat)
-
-        # Skip records without any variants of interest
-        #if len(denovos) == 0 and len(homs) == 0 and len(hets) == 0 and private == 0: #if the proaband isn't variant here, skip this record
-        #    continue
-
-        #if len(private) > 0 and max_af <= dom_af_thresh and parent_vars <=  (len(parent_list)*2*0.01) and 'Dominant' in record.info['disease_list_inheritance']: #remove if no private variants at this site, if too common in ref databases or if in more than 1% pf parental alleles or if not in our annotated gene list
-#       # if len(private) > 0 and max_af <= dom_af_thresh and record.info['disease_list_source'][0] != "NA": #remove if no private variants at this site, if too common in ref databases or if in more than 1% pf parental alleles or if not in our annotated gene list
-        #    if chrom == "X":
-        #        if hom_candidates + het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 3):
-        #            private_vars.write(record)
-        #    else:
-        #        if het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 3):
-        #            private_vars.write(record) 
-
-        #if len(hets) > 0 and hom_candidates <= cohort_gt_cutoff and 'Recessive' in record.info['disease_list_inheritance']: # add site to compound het list if proband is het here and 5 or less probands are also het here
-        #    comp_het.write(record)
-
-        #if len(denovos) > 0 and 'Dominant' in record.info['disease_list_inheritance']: # if variant is de novo and gene is associated with AD disease
-            # GT specific filtering logic
-        #    if int(proband_format['GT'][0]) + int(proband_format['GT'][1]) != 1 and hom_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1):  # if this variant is homozygous (ref or alt)  add to  file- all alleles here should be 1 and therefore all hets 0/1 and homs 1/1 or 0/0 so we can add these alleles to infer GT
-        #        manual_rev.write(record)
-        #        de_novo_num+=1
-#                continue
-        #    elif max_af <= dom_af_thresh and parent_vars <= (len(parent_list)*2*0.01) and het_candidates <= cohort_gt_cutoff and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1): # if variant is het, apply stricter af filters before adding to file and remove if too common in ref databases, or if in more than 1% of parental alleles 
-        #        manual_rev.write(record)
-        #        de_novo_num+=1
-#                continue
-        #if len(homs) > 0 and hom_candidates <= cohort_gt_cutoff and 'Recessive' in record.info['disease_list_inheritance'] and (list(record.info['ExonicFunc.ensGene'])[0] != 'nonsynonymous_SNV' or mis_tier >= 1): #for this record, if the individual has a hom variant here and less than or equal to 5 probands also have this variant
-        #    rec_homs.write(record)
-        #    hom_num+=1
-#            continue
-        #else:
-        #    continue
-
     #remove half hets and print comp het list to file 
     #make list of all genes with hets that occur more than once in comp het list
     genes = []
@@ -479,7 +371,6 @@ def main():
     het_file.close()
     hom_file.close()
     comp_het_file.close()
-#    print("Homs: {} De novo: {}".format(hom_num, de_novo_num))
 
 if __name__ == '__main__':
     main()
