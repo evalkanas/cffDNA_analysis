@@ -313,21 +313,6 @@ def main():
         het_candidates = len([geno for geno in candidates if geno == (0,1)]) # number of probands that are het at this site
         hom_candidates = len([geno for geno in candidates if geno == (1,1)]) # numner of probands that are hom at this site
 
-
-        # remove sites where any family member has less than AD of 5
-        # Do not want to use AD filter on prenatal samples 
-        #AD = [record.samples[proband]['AD'], record.samples[pat]['AD'], record.samples[mat]['AD']]
-        #pass_AD = [s for s in ADs if s != (None,) and sum(s) > 5]
-        #if len(pass_AD) < 3: # if all 3 individuals in this fam do not have passing AD, remove the site
-        #    continue
-
-        
-        #we wont have parents for single samples
-#        parent_vars = get_parent_vars(record, parent_list)
-#        if parent_vars > (len(parent_list)*2*0.05): # if more than 5% of parental alleles (across the cohort) are alt at this location, remove
-#            continue
-
-
  ### Filter Variants ###
 
         ## Set variant and Gene list requirements
@@ -336,10 +321,9 @@ def main():
         num_coding=len([e for e in cons if e in cons_keep])
         
         ## Allele frequency filtering
-#        af_threshold = 0.05
         dom_af_thresh = 0.01
         rec_af_thresh = 0.05
-        raw_af_list = [record.info['ExAC_ALL'][0], record.info['gnomAD_genome_ALL'][0], record.info['gnomAD_exome_ALL'][0], record.info['1000g2015aug_all']]
+        raw_af_list = [record.info['ExAC_ALL'][0], record.info['AF_popmax'][0], record.info['1000g2015aug_all']] #Exac, gnomad, 1Kg
         #raw_af_list.append(record.info['AF'][0]) #do we want to set same AF filters for cohort as dbs?
 
         # ANNOVAR doesn't give annotations for each multiallelic variant allele
@@ -356,14 +340,8 @@ def main():
         if num_coding < 1 or record.info['disease_list_source'][0] == "NA": #remove if not in annotated gene list`:
             continue
 
-        #only keep PASS/ExcessHet SNVs
-        #NOT accurate for cffDNA
-        #if len(record.alts[0]) == 1 and len(record.ref) == 1:  #  SNV
-        #    if record.filter.keys()[0] not in ['PASS', 'ExcessHet']: # only keep SNV vars that pass vqsr or were flagged as Excess hets - keep all indels regardless of filter
-        #        continue
-        #else: # indel
-        #    if len(record.alts[0]) > 50 or len(record.ref) > 50: # remove indels larger than 50 bp
-        #        continue
+        #if len(record.alts[0]) > 50 or len(record.ref) > 50: # remove indels larger than 50 bp
+        #    continue
 
         # remove missense variants that are benign in clinvar
         if list(record.info['ExonicFunc.ensGene'])[0] == 'nonsynonymous_SNV' and set(record.info['CLNSIG']).issubset(clin_remove): #get rid of missense vars in clinvar as benign/risk factor, etc
@@ -371,15 +349,10 @@ def main():
 
         proband_format = dict(zip(record.format.keys(), record.samples[proband].values()))
         proband_alt_index = proband_format['GT'][1]
-#        if sum(list(proband_format['AD'])) < 5: # if there are less than 5 reads at this position, remove this variant      
-#            continue
 
         AB=float(list(proband_format['AD'])[proband_alt_index])/float(sum(list(proband_format['AD']))) # calculate AB using the depth of the second allele in GT field / sum depths for both alleles so AB =1 for both 0/0 and 1/1 homs 
 #        if AB < 0.15: # remove sites with low AB - this will remove 0/0 de novo sites
 #            continue
-        #proband_gq=proband_format['GQ']
-        #if proband_gq is None: #or record.filter.keys()[0] != 'PASS':
-        #    continue
 
 #       convert CADD to float    
         #CADD = record.info['CADD_phred'][0]
@@ -408,12 +381,11 @@ def main():
         #        mis_tier = 0 
 
         #### INHERITANCE FILTERING ####
-        # dominant vars
         proband_gt = record.samples[proband]['GT']
         comp_het_list = []
 
 
-        if 'Dominant' in record.info['disease_list_inheritance'] and AB < 0.25 and max_af <= dom_af_thresh and het_candidates <= cohort_gt_cutoff:
+        if 'Dominant' in record.info['disease_list_inheritance'] and AB < 0.25 and max_af <= dom_af_thresh: #and het_candidates <= cohort_gt_cutoff:
             het_file.write(record)
             #if chrom == "X":
             #    if sex == 1:
@@ -427,10 +399,10 @@ def main():
             
 
         if 'Recessive' in record.info['disease_list_inheritance']:
-            if 0.5 < AB <0.75 and  hom_candidates <= cohort_gt_cutoff:
+            if 0.5 < AB <0.75: # and  hom_candidates <= cohort_gt_cutoff:
             #if proband_gt == (1,1) and hom_candidates <= cohort_gt_cutoff:
                 hom_file.write(record)
-            if AB <0.25 and hom_candidates <= cohort_gt_cutoff:
+            if AB <0.25: #and hom_candidates <= cohort_gt_cutoff:
             #if proband_gt == (0,1) and hom_candidates <= cohort_gt_cutoff:
                 comp_het_list.append(record)
 
@@ -443,8 +415,8 @@ def main():
         #else:
         #    denovos = get_all_denovo_candidates(record, proband, pat, mat)
 
-        homs = get_hom_alt(record, proband, pat, mat, sex)
-        hets = get_proband_hets(record, proband, pat, mat)
+#        homs = get_hom_alt(record, proband, pat, mat, sex)
+#        hets = get_proband_hets(record, proband, pat, mat)
         
         # Get inherited variants in this family
         #if chrom == 'X':
@@ -486,7 +458,7 @@ def main():
         #else:
         #    continue
 
-    #TODO: add code to remove half hets and to print comp het list to file 
+    #remove half hets and print comp het list to file 
     #make list of all genes with hets that occur more than once in comp het list
     genes = []
     for s in comp_het_list:
@@ -506,7 +478,7 @@ def main():
     het_file.close()
     hom_file.close()
     comp_het_file.close()
-    print("Homs: {} De novo: {}".format(hom_num, de_novo_num))
+#    print("Homs: {} De novo: {}".format(hom_num, de_novo_num))
 
 if __name__ == '__main__':
     main()
