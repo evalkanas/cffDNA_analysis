@@ -250,6 +250,7 @@ def main():
     ped_dict, parent_list, affected_list = get_ped_structure(args.ped) #get a dict of prodband: dad, mom, sex and a list of all parents of trio probands, and all affected individuals
     proband = args.proband
     print("proband {}".format(proband))
+    print(ped_dict)
     print("proband entry {}".format(ped_dict[proband]))
     pat = ped_dict[proband][0]
     mat = ped_dict[proband][1]
