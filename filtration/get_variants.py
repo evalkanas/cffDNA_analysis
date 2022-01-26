@@ -308,7 +308,7 @@ def main():
         dom_af_thresh = 0.01
         rec_af_thresh = 0.05
         raw_af_list = [record.info['ExAC_ALL'], record.info['AF_popmax'][0], record.info['1000g2015aug_all']] #Exac, gnomad, 1Kg
-        #raw_af_list.append(record.info['AF'][0]) #do we want to set same AF filters for cohort as dbs?
+        raw_af_list.append(record.info['AF'][0]) #do we want to set same AF filters for cohort as dbs?
 
         # ANNOVAR doesn't give annotations for each multiallelic variant allele
         af_list = [ af for af in raw_af_list if (af is not None ) and ( af != "." ) ] #remove null values
