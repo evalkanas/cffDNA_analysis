@@ -260,6 +260,7 @@ def main():
 
  ### Set Variants ###
     cons_keep=['frameshift_deletion', 'frameshift_insertion', 'nonsynonymous_SNV', 'stopgain', 'stoploss', 'splicing'] #, 'UTR3', 'UTR5', 'upstream']
+    cons_keep.extend(['nonframeshift_deletion', 'nonframeshift_insertion'])
     clin_remove=['Affects', 'Likely_benign', 'other', 'Benign/Likely_benign', 'drug_response', 'protective', 'association', 'risk_factor', '_protective', '_risk_factor', 'Benign', '_other', '_drug_response','_association']
     clin_keep=['Likely_pathogenic', 'Pathogenic', 'Pathogenic/Likely_pathogenic']
 
