@@ -348,11 +348,11 @@ def main():
             dom_list.append(record) 
 
         if 'Recessive' in record.info['disease_list_inheritance']:
-            if 0.5 < AB < 0.75: # and  hom_candidates <= cohort_gt_cutoff:
-                hom_file.write(record)
-                rec_list.append(record)
-            elif 0 < AB < 0.25: #and hom_candidates <= cohort_gt_cutoff:
+            if 0 AB < 0.75: # and  hom_candidates <= cohort_gt_cutoff:
                 comp_het_list.append(record)
+                if AB < 0.5:
+                    rec_list.append(record)
+                    hom_life.write(record)
         
     #remove half hets and print comp het list to file 
     #make list of all genes with hets that occur more than once in comp het list
