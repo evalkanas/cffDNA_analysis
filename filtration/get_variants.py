@@ -343,16 +343,16 @@ def main():
         dom_list = []
         rec_list= []
 #        print("inheritance: {}  AB: {} max_af: {}".format(record.info['disease_list_inheritance'], AB, max_af))
-        if 'Dominant' in record.info['disease_list_inheritance'] and 0 < AB < 0.25 and max_af <= dom_af_thresh: #and het_candidates <= cohort_gt_cutoff:
+        if 'Dominant' in record.info['disease_list_inheritance'] and 0 < AB < 0.25 and max_af <= dom_af_thresh: 
             het_file.write(record)
             dom_list.append(record) 
 
         if 'Recessive' in record.info['disease_list_inheritance']:
-            if 0 AB < 0.75: # and  hom_candidates <= cohort_gt_cutoff:
+            if 0 < AB < 0.75: 
                 comp_het_list.append(record)
-                if AB < 0.5:
+                if AB > 0.5:
                     rec_list.append(record)
-                    hom_life.write(record)
+                    hom_file.write(record)
         
     #remove half hets and print comp het list to file 
     #make list of all genes with hets that occur more than once in comp het list
